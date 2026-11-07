@@ -1,5 +1,3 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
-
 # Feierabend
 
 Schedule Bambu Lab prints so they start, or finish, when you want them to.
@@ -19,10 +17,3 @@ Feierabend runs as a Bambu Studio post-processing script. After each slice, it a
 - The wait sits between `; FEIERABEND_WAIT_START` and `; FEIERABEND_WAIT_END`, and a later run replaces it.
 - **Finish by** uses Bambu Studio's `total estimated time` from the G-code header.
 - The wait is counted from when the printer starts the job, so press Print soon after scheduling.
-
-## Development
-
-```sh
-make agent-check   # build, test, lint, verify the bundle, smoke-launch
-make try-hook      # open the scheduler on a sample G-code, like Bambu Studio would
-```
