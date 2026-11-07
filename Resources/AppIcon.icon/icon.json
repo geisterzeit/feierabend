@@ -1,0 +1,53 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:0.90000,0.96824,0.92588,1.00000",
+      "srgb:0.74000,0.91741,0.80729,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.78000000000000003
+      }
+    }
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "solid" : "srgb:0.00000,0.68235,0.25882,1.00000"
+          },
+          "image-name" : "symbol.png",
+          "name" : "moon.zzz.fill",
+          "position" : {
+            "scale" : 0.90000000000000002,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.45000000000000001
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.28000000000000003
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
