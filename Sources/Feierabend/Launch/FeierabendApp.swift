@@ -19,10 +19,34 @@ enum Launcher {
 }
 
 struct FeierabendApp: App {
+  @NSApplicationDelegateAdaptor private var delegate: SetupAppDelegate
+
   var body: some Scene {
     Window("Feierabend", id: "setup") {
       SetupView()
     }
     .windowResizability(.contentSize)
+  }
+}
+
+/// Receives 3MF projects opened with Feierabend from Finder or the Dock.
+final class SetupAppDelegate: NSObject, NSApplicationDelegate {
+  private var isLaunching = true
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    isLaunching = false
+  }
+
+  /// Launched just to open projects, it keeps the setup window out of the way and quits
+  /// once the projects are in Bambu Studio.
+  func application(_ application: NSApplication, open urls: [URL]) {
+    let launchedForProjects = isLaunching
+    if launchedForProjects {
+      for window in application.windows { window.orderOut(nil) }
+    }
+    Task {
+      await ProjectOpener.open(urls)
+      if launchedForProjects { NSApp.terminate(nil) }
+    }
   }
 }

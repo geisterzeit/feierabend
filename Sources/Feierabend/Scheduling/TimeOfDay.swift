@@ -49,21 +49,63 @@ nonisolated extension TimeOfDay {
     return TimeOfDay(rawValue: wrapped)!
   }
 
-  /// Reads digits typed in a row: "7" is 07:00, "73" and "730" are 07:30, "0730" is 07:30.
-  init?(typedDigits digits: String) {
-    guard (1...4).contains(digits.count), digits.allSatisfy({ $0.isASCII && $0.isNumber }),
-      let value = Int(digits)
-    else { return nil }
-    let candidates: [(hour: Int, minute: Int)] =
-      switch digits.count {
-      case 1: [(value, 0)]
-      case 2: [(value, 0), (value / 10, value % 10 * 10)]
-      case 3: [(value / 100, value % 100), (value / 10, value % 10 * 10)]
-      default: [(value / 100, value % 100)]
+  /// Reads a time typed into a field: "7:30", "19.45", "730", "7", or "7:30 pm".
+  init?(typed text: String, in calendar: Calendar = .current) {
+    var clock = text.lowercased().trimmingCharacters(in: .whitespaces)
+    let meridiem = Meridiem.remove(from: &clock, in: calendar)
+    let fields = clock.split(separator: /[:.\s]+/).map(String.init)
+    let time = Self.readings(of: fields).lazy
+      .compactMap { reading -> TimeOfDay? in
+        meridiem.hour(from: reading.hour).map { TimeOfDay(hour: $0, minute: reading.minute) }
       }
-    guard let time = candidates.first(where: { $0.hour < 24 && $0.minute < 60 }) else {
-      return nil
+      .first { (0..<24).contains($0.hour) && (0..<60).contains($0.minute) }
+    guard let time else { return nil }
+    self = time
+  }
+
+  /// What the typed numbers could mean, likeliest first: "73" is 07:00 if it can't be 73:00.
+  private static func readings(of fields: [String]) -> [(hour: Int, minute: Int)] {
+    let numbers = fields.compactMap { field in
+      field.allSatisfy { $0.isASCII && $0.isNumber } ? Int(field) : nil
     }
-    self.init(hour: time.hour, minute: time.minute)
+    guard numbers.count == fields.count else { return [] }
+    switch fields.map(\.count) {
+    case [1]: return [(numbers[0], 0)]
+    case [2]: return [(numbers[0], 0), (numbers[0] / 10, numbers[0] % 10 * 10)]
+    case [3]:
+      return [(numbers[0] / 100, numbers[0] % 100), (numbers[0] / 10, numbers[0] % 10 * 10)]
+    case [4]: return [(numbers[0] / 100, numbers[0] % 100)]
+    case [1, 1], [1, 2], [2, 1], [2, 2]: return [(numbers[0], numbers[1])]
+    default: return []
+    }
+  }
+}
+
+/// The "am" or "pm" of a time typed on a 12-hour clock, or neither on a 24-hour one.
+private nonisolated enum Meridiem {
+  case twentyFourHour
+  case am
+  case pm
+
+  static func remove(from clock: inout String, in calendar: Calendar) -> Meridiem {
+    let symbols: [(String, Meridiem)] = [
+      (calendar.pmSymbol.lowercased(), .pm), (calendar.amSymbol.lowercased(), .am),
+      ("pm", .pm), ("am", .am), ("p", .pm), ("a", .am),
+    ]
+    for (symbol, meridiem) in symbols where !symbol.isEmpty {
+      if let range = clock.range(of: symbol) {
+        clock.removeSubrange(range)
+        return meridiem
+      }
+    }
+    return .twentyFourHour
+  }
+
+  func hour(from clockHour: Int) -> Int? {
+    switch self {
+    case .twentyFourHour: clockHour
+    case .am: (1...12).contains(clockHour) ? clockHour % 12 : nil
+    case .pm: (1...12).contains(clockHour) ? clockHour % 12 + 12 : nil
+    }
   }
 }

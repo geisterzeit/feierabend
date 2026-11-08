@@ -5,15 +5,13 @@ import SwiftUI
 struct SetupView: View {
   private static let bambuStudioBundleID = "com.bambulab.bambu-studio"
 
-  private let scriptLine = PostProcessingHook.scriptLine(
-    forExecutableAt: Bundle.main.executablePath
-      ?? "/Applications/Feierabend.app/Contents/MacOS/Feierabend"
-  )
+  private let scriptLine = PostProcessingHook.scriptLine
   private let isInApplications = Bundle.main.bundlePath.hasPrefix("/Applications/")
   private let bambuStudio = NSWorkspace.shared.urlForApplication(
     withBundleIdentifier: bambuStudioBundleID)
 
   @State private var copiedScriptLine = false
+  @AppStorage(ProjectOpener.asksBeforeChangingKey) private var asksBeforeChangingProjects = true
 
   var body: some View {
     VStack(spacing: 0) {
@@ -60,6 +58,22 @@ struct SetupView: View {
           Text("Prepare › Process › Advance › Others › Post-processing scripts")
             .font(.caption.monospaced())
             .foregroundStyle(.secondary)
+        }
+        Section {
+          Text(
+            "A 3MF project brings its own process settings, which replace your preset and its post-processing line. Open projects with Feierabend instead: drop them on its icon, or choose it under **Open With** in Finder. Feierabend adds the line to the project, then opens it in Bambu Studio."
+          )
+          .fixedSize(horizontal: false, vertical: true)
+          Toggle("Ask before adding the line to a project", isOn: $asksBeforeChangingProjects)
+        } header: {
+          Text("Downloaded Projects")
+        } footer: {
+          Text(
+            "To always open projects this way, choose Get Info on a 3MF file in Finder, pick Feierabend under Open With, and click Change All."
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
         }
         Section("How It Works") {
           Text(

@@ -7,8 +7,20 @@ import Foundation
 nonisolated enum PostProcessingHook {
   static let outputNameVariable = "SLIC3R_PP_OUTPUT_NAME"
 
+  /// The line that runs this copy of Feierabend.
+  static var scriptLine: String {
+    scriptLine(
+      forExecutableAt: Bundle.main.executablePath
+        ?? "/Applications/Feierabend.app/Contents/MacOS/Feierabend")
+  }
+
   static func scriptLine(forExecutableAt path: String) -> String {
     "\"\(path)\""
+  }
+
+  /// Whether `line` runs Feierabend, wherever it was installed at the time.
+  static func isScriptLine(_ line: String) -> Bool {
+    line.hasSuffix("/Feierabend.app/Contents/MacOS/Feierabend\"")
   }
 
   static func gcodeFile(

@@ -47,9 +47,12 @@ private final class PromptDelegate: NSObject, NSApplicationDelegate {
 
   /// A borderless glass panel, so the prompt reads as a popup rather than a whole app.
   func applicationDidFinishLaunching(_ notification: Notification) {
-    let card = GlassCard(content: NSHostingView(rootView: content))
+    let card = NSHostingView(rootView: GlassCard(content: content))
+    let cardSize = card.fittingSize
+    // The card grows inside the panel, so the panel mustn't shrink to fit it.
+    card.sizingOptions = []
     let panel = PopupPanel(
-      contentRect: NSRect(origin: .zero, size: card.fittingSize),
+      contentRect: NSRect(origin: .zero, size: cardSize),
       styleMask: [.borderless],
       backing: .buffered,
       defer: false
@@ -65,57 +68,43 @@ private final class PromptDelegate: NSObject, NSApplicationDelegate {
     panel.hidesOnDeactivate = false
     panel.animationBehavior = .alertPanel
     panel.center()
+    extendToBottomOfScreen(panel)
     panel.makeKeyAndOrderFront(nil)
     self.panel = panel
     NSApp.activate()
   }
-}
 
-/// Liquid Glass with a shadow that follows its rounded corners. A borderless window's own
-/// shadow would follow the full rectangle the glass is drawn in.
-private final class GlassCard: NSView {
-  private static let cornerRadius: CGFloat = 26
-  private static let shadowMargin: CGFloat = 32
-
-  private let glass = NSGlassEffectView()
-
-  init(content: NSView) {
-    super.init(frame: .zero)
-    wantsLayer = true
-    layer?.shadowColor = NSColor.black.cgColor
-    layer?.shadowOpacity = 0.3
-    layer?.shadowRadius = 16
-    layer?.shadowOffset = CGSize(width: 0, height: -6)
-
-    glass.cornerRadius = Self.cornerRadius
-    glass.contentView = content
-    glass.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(glass)
-    NSLayoutConstraint.activate([
-      glass.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.shadowMargin),
-      glass.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Self.shadowMargin),
-      glass.topAnchor.constraint(equalTo: topAnchor, constant: Self.shadowMargin),
-      glass.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -Self.shadowMargin),
-    ])
-  }
-
-  @available(*, unavailable)
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) is not supported")
-  }
-
-  override func layout() {
-    super.layout()
-    layer?.shadowPath = CGPath(
-      roundedRect: glass.frame,
-      cornerWidth: Self.cornerRadius,
-      cornerHeight: Self.cornerRadius,
-      transform: nil
-    )
+  /// Gives the card room to grow downwards inside the transparent panel. Resizing the window
+  /// while the card animates would make the card jump.
+  private func extendToBottomOfScreen(_ panel: NSPanel) {
+    guard let screen = panel.screen ?? NSScreen.main else { return }
+    var frame = panel.frame
+    frame.origin.y = min(screen.visibleFrame.minY, frame.minY)
+    frame.size.height = panel.frame.maxY - frame.minY
+    panel.setFrame(frame, display: false)
   }
 }
 
-/// Borderless panels don't take keyboard input unless they say so.
+/// Liquid Glass around the prompt, pinned to the top of a transparent panel with room below
+/// for the card to grow into. Transparent parts of the panel let clicks through.
+private struct GlassCard<Content: View>: View {
+  let content: Content
+
+  var body: some View {
+    content
+      .glassEffect(.regular, in: .rect(cornerRadius: 26))
+      .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
+      .padding(32)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+  }
+}
+
+/// Borderless panels don't take keyboard input unless they say so. Escape closes the prompt,
+/// so Bambu Studio prints right away.
 private final class PopupPanel: NSPanel {
   override var canBecomeKey: Bool { true }
+
+  override func cancelOperation(_ sender: Any?) {
+    NSApp.terminate(nil)
+  }
 }

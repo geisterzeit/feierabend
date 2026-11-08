@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// The plan at a glance: a dotted stretch while the printer waits, then a solid one while it prints.
+/// The plan as an itinerary from now to done: a dotted rail while the printer waits,
+/// then a solid one while it prints. Every stop names its day, so a plan crossing
+/// midnight reads as such.
 struct PlanTimeline: View {
   let plan: PrintPlan
   let printDuration: TimeInterval?
@@ -8,72 +10,99 @@ struct PlanTimeline: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-  /// Both stretches stay visible, however lopsided the plan.
-  private var waitShare: CGFloat {
-    guard let printDuration else { return 1 }
-    guard plan.wait >= 60 else { return 0 }
-    let share = plan.wait / (plan.wait + printDuration)
-    return min(max(share, 0.15), 0.85)
+  private static let railWidth: CGFloat = 12
+  private static let spacing: CGFloat = 10
+
+  private var waitsBeforeStarting: Bool {
+    plan.wait >= 60
   }
 
   var body: some View {
-    VStack(spacing: 8) {
-      HStack(alignment: .firstTextBaseline) {
-        endpoint("Starts", plan.start, alignment: .leading)
-        Spacer()
-        if let finish = plan.finish {
-          endpoint("Done", finish, alignment: .trailing)
-        }
+    VStack(alignment: .leading, spacing: 0) {
+      if waitsBeforeStarting {
+        stop("Now", at: now, marker: .hollow)
+        stretch("waits \(ClockText.duration(plan.wait))", rail: .waiting)
       }
-      bar
-        .frame(height: 6)
-      HStack {
-        Text("waits \(ClockText.duration(plan.wait))")
-        Spacer()
-        if let printDuration {
-          Text("prints \(ClockText.duration(printDuration))")
-        }
+      stop("Starts", at: plan.start, marker: .filled)
+      if let finish = plan.finish, let printDuration {
+        stretch("prints \(ClockText.duration(printDuration))", rail: .printing)
+        stop("Done", at: finish, marker: .filled)
       }
-      .font(.caption.weight(.medium))
-      .foregroundStyle(.secondary)
-      .contentTransition(.numericText())
     }
     .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: plan)
     .accessibilityElement(children: .combine)
   }
 
-  private func endpoint(_ title: String, _ date: Date, alignment: HorizontalAlignment) -> some View
-  {
-    VStack(alignment: alignment, spacing: 1) {
+  private func stop(_ title: String, at date: Date, marker: StopMarker) -> some View {
+    HStack(spacing: Self.spacing) {
+      marker
+        .frame(width: Self.railWidth)
       Text(title)
-        .font(.caption.weight(.medium))
-        .foregroundStyle(.secondary)
+      Spacer(minLength: 0)
       Text(ClockText.dayAndTime(date, relativeTo: now))
-        .font(.callout.weight(.medium).monospacedDigit())
+        .monospacedDigit()
         .contentTransition(.numericText())
     }
+    .font(.callout.weight(.medium))
+    .foregroundStyle(marker == .hollow ? .secondary : .primary)
   }
 
-  private var bar: some View {
-    GeometryReader { geometry in
-      let spacing: CGFloat = waitShare > 0 && waitShare < 1 ? 4 : 0
-      let waitWidth = (geometry.size.width - spacing) * waitShare
-      HStack(spacing: spacing) {
-        DottedLine()
-          .stroke(.tertiary, style: StrokeStyle(lineWidth: 4, lineCap: .round, dash: [0, 8]))
-          .frame(width: waitWidth)
-        Capsule()
-          .fill(.tint)
-      }
+  private func stretch(_ duration: String, rail: Rail) -> some View {
+    HStack(spacing: Self.spacing) {
+      rail
+        .frame(width: Self.railWidth)
+      Text(duration)
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+        .contentTransition(.numericText())
+        .padding(.vertical, 6)
+    }
+    .fixedSize(horizontal: false, vertical: true)
+  }
+}
+
+private enum StopMarker: View {
+  case hollow
+  case filled
+
+  var body: some View {
+    switch self {
+    case .hollow:
+      Circle()
+        .strokeBorder(.tertiary, lineWidth: 2)
+        .frame(width: 9, height: 9)
+    case .filled:
+      Circle()
+        .fill(.tint)
+        .frame(width: 9, height: 9)
     }
   }
 }
 
-private nonisolated struct DottedLine: Shape {
+private enum Rail: View {
+  case waiting
+  case printing
+
+  var body: some View {
+    switch self {
+    case .waiting:
+      VerticalLine()
+        .stroke(.tertiary, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0, 5]))
+        .frame(width: 3)
+    case .printing:
+      Capsule()
+        .fill(.tint)
+        .frame(width: 3)
+        .padding(.vertical, 3)
+    }
+  }
+}
+
+private nonisolated struct VerticalLine: Shape {
   func path(in rect: CGRect) -> Path {
     Path { path in
-      path.move(to: CGPoint(x: rect.minX + 2, y: rect.midY))
-      path.addLine(to: CGPoint(x: rect.maxX - 2, y: rect.midY))
+      path.move(to: CGPoint(x: rect.midX, y: rect.minY + 4))
+      path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY - 4))
     }
   }
 }
